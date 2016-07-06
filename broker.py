@@ -5,7 +5,7 @@ import sys
 import struct
 
 
-class BrokerTCPServer(socketserver.TCPServer):
+class BrokerTCPServer(socketserver.ThreadingTCPServer):
     """
     Broker (TCP server) that additionally takes a list of other brokers than himself.
     """
@@ -22,18 +22,26 @@ class BrokerHandler(socketserver.StreamRequestHandler):
     def setup(self):
         print('{}:{} -> Connected'.format(*self.client_address), file=sys.stderr)
 
+    def _get_line(self):
+        try:
+            raw_msg_length = self.request.recv(4)
+            if not raw_msg_length:
+                return None
+
+            msg_length = struct.unpack('>I', raw_msg_length)[0]
+            msg = self.request.recv(msg_length)
+            return msg.decode()
+        except ConnectionResetError:
+            return None
+
     def handle(self):
         client_host, client_port = self.client_address
         other_brokers = self.server.other_brokers
 
         while True:
-            raw_msg_length = self.request.recv(4)
-            if not raw_msg_length:
+            line = self._get_line()
+            if not line:
                 break
-
-            msg_length = struct.unpack('>I', raw_msg_length)[0]
-            msg = self.request.recv(msg_length)
-            line = msg.decode()
 
             print("{}:{} -> {}".format(client_host, client_port, line))
 
