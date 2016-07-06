@@ -1,0 +1,9 @@
+#!/bin/bash
+
+A="localhost:10000"
+B="localhost:10001"
+C="localhost:10002"
+
+python3 broker.py "$A" "$B" "$C" &
+python3 broker.py "$B" "$C" "$A" &
+python3 broker.py "$C" "$A" "$B"
