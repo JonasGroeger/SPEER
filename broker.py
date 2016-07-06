@@ -2,6 +2,8 @@
 import socketserver
 import sys
 
+import struct
+
 
 class BrokerTCPServer(socketserver.TCPServer):
     """
@@ -18,16 +20,22 @@ class BrokerHandler(socketserver.StreamRequestHandler):
     """
 
     def setup(self):
-        print('{}:{} connected'.format(*self.client_address))
+        print('{}:{} connected'.format(*self.client_address), file=sys.stderr)
 
     def handle(self):
         client_host, client_port = self.client_address
         other_brokers = self.server.other_brokers
 
         while True:
-            data = self.rfile.readline()
-            data = data.decode().tstrip('\n')
-            print("{}:{} wrote: {}".format(client_host, client_port, data))
+            raw_msg_length = self.request.recv(4)
+            if not raw_msg_length:
+                break
+
+            msg_length = struct.unpack('>I', raw_msg_length)[0]
+            msg = self.request.recv(msg_length)
+            line = msg.decode()
+
+            print("  {}:{} wrote: {}".format(client_host, client_port, line))
 
     def finish(self):
         print("{}:{} closed the connection :(".format(*self.client_address), file=sys.stderr)

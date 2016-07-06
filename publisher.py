@@ -2,6 +2,7 @@
 import socket
 import sys
 
+import struct
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
@@ -26,6 +27,9 @@ if __name__ == '__main__':
             line = sys.stdin.readline().rstrip('\n')
             if line in [':exit', ':q', ':quit']:
                 break
-            print('Sending ' + line)
-            sock.sendall(line.encode('utf-8'))
-            sock.send(b'\n')
+
+            data = line.encode('utf-8')
+            data_length = len(data)
+
+            msg = struct.pack('>I', data_length) + data
+            sock.sendall(msg)
