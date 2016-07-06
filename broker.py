@@ -20,7 +20,7 @@ class BrokerHandler(socketserver.StreamRequestHandler):
     """
 
     def setup(self):
-        print('{}:{} connected'.format(*self.client_address), file=sys.stderr)
+        print('{}:{} -> Connected'.format(*self.client_address), file=sys.stderr)
 
     def handle(self):
         client_host, client_port = self.client_address
@@ -35,10 +35,10 @@ class BrokerHandler(socketserver.StreamRequestHandler):
             msg = self.request.recv(msg_length)
             line = msg.decode()
 
-            print("  {}:{} wrote: {}".format(client_host, client_port, line))
+            print("{}:{} -> {}".format(client_host, client_port, line))
 
     def finish(self):
-        print("{}:{} closed the connection :(".format(*self.client_address), file=sys.stderr)
+        print("{}:{} -> Closed the connection :(".format(*self.client_address), file=sys.stderr)
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:

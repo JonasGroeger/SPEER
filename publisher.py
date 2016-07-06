@@ -20,9 +20,6 @@ if __name__ == '__main__':
             print('Could not establish connection to broker. Exiting...', file=sys.stderr)
             sys.exit(4)
 
-        print("Client connected to broker {}:{} ...".format(broker_host, broker_port))
-        print("Awaiting orders ...")
-
         while True:
             line = sys.stdin.readline().rstrip('\n')
             if line in [':exit', ':q', ':quit']:
