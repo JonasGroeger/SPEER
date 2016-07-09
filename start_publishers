@@ -1,0 +1,5 @@
+#!/bin/bash
+
+./publisher.py Bob Broker1 &
+./publisher.py Tom Broker1 &
+./publisher.py Adm Broker1

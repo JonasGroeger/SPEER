@@ -1,7 +1,0 @@
-#!/bin/bash
-
-A="localhost:10000"
-B="localhost:10001"
-C="localhost:10002"
-
-python3 publisher.py "$A" "$B" "$C"

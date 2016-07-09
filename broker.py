@@ -1,64 +1,78 @@
 #!/usr/bin/env python3
-import socketserver
-import sys
+import argparse
+import random
 
-import struct
+from twisted.internet import reactor
+from twisted.internet.protocol import DatagramProtocol
+from twisted.internet.task import LoopingCall
+
+from common import MCAST_IP, MCAST_PORT, MCAST_ADDR, split_list
+from packet import Packet
+
+hashes = []
+publishers = []
+brokers = []
 
 
-class BrokerTCPServer(socketserver.ThreadingTCPServer):
-    """
-    Broker (TCP server) that additionally takes a list of other brokers than himself.
-    """
-    def __init__(self, server_address, RequestHandlerClass, other_brokers, bind_and_activate=True):
-        super().__init__(server_address, RequestHandlerClass, bind_and_activate)
-        self.other_brokers = other_brokers
+def select_other_broker(myself):
+    if brokers == [myself]:
+        return myself
+
+    brk = list(brokers)
+    brk.remove(myself)
+    return random.choice(brk)
 
 
-class BrokerHandler(socketserver.StreamRequestHandler):
-    """
-    Handler for the broker.
-    """
+class Broker(DatagramProtocol):
+    def __init__(self, name, receiver=False):
+        super().__init__()
+        self._send_loop = LoopingCall(self._load)
+        self.name = name
+        self.receiver = receiver
 
-    def setup(self):
-        print('{}:{} -> Connected'.format(*self.client_address), file=sys.stderr)
+    def _load(self):
+        _, pub_to_move = split_list(publishers)
+        for pub in pub_to_move:
+            other_home_broker = select_other_broker(self.name)
+            print("Load! Telling {} to change home broker to {}.".format(pub, other_home_broker))
+            p = Packet(self.name, '', pub, 'HomeBrokerChange', other_home_broker)
+            self.transport.write(p.pack(), MCAST_ADDR)
 
-    def _get_line(self):
-        try:
-            raw_msg_length = self.request.recv(4)
-            if not raw_msg_length:
-                return None
+    def startProtocol(self):
+        self.transport.setTTL(5)
+        self.transport.joinGroup(MCAST_IP)
 
-            msg_length = struct.unpack('>I', raw_msg_length)[0]
-            msg = self.request.recv(msg_length)
-            return msg.decode()
-        except ConnectionResetError:
-            return None
+        if not self.receiver:
+            self._send_loop.start(interval=30, now=False)
 
-    def handle(self):
-        client_host, client_port = self.client_address
-        other_brokers = self.server.other_brokers
+    def datagramReceived(self, datagram, address):
+        sender, broker, receiver, typ, data = Packet.unpack(datagram)
 
-        while True:
-            line = self._get_line()
-            if not line:
-                break
+        if self.receiver and sender != self.name:
+            h = hash(str([sender, broker, receiver, typ, data]))
 
-            print("{}:{} -> {}".format(client_host, client_port, line))
+            if typ == 'Message' and h not in hashes and broker == '':
+                p = Packet(sender, self.name, '', 'Message', data)
+                self.transport.write(p.pack(), MCAST_ADDR)
+                hashes.append(h)
+                if sender not in publishers:
+                    publishers.append(sender)
 
-    def finish(self):
-        print("{}:{} -> Closed the connection :(".format(*self.client_address), file=sys.stderr)
+            if typ == 'Message' and h not in hashes and broker != '':
+                p = Packet(sender, self.name, '', 'Message', data)
+                self.transport.write(p.pack(), MCAST_ADDR)
+                hashes.append(h)
+                if broker not in brokers:
+                    brokers.append(broker)
+                print("Brokers:")
+                print(brokers)
+
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        print('Usage: {} (<host>:<port>) (<o_host>:<o_port>) [(<o_host>:<o_port>) ...] '.format(
-            __file__), file=sys.stderr)
-        sys.exit(3)
+    parser = argparse.ArgumentParser(description='Broker')
+    parser.add_argument('name')
+    args = parser.parse_args()
 
-    host, port = sys.argv[1].split(':')
-    port = int(port)
-    other_brokers = [(h, p) for h, p in map(lambda s: s.split(':'), sys.argv[2:])]
-
-    server = BrokerTCPServer((host, port), BrokerHandler, other_brokers)
-
-    print("Starting broker on {}:{} ...".format(host, port))
-    server.serve_forever()
+    reactor.listenMulticast(MCAST_PORT, Broker(args.name, receiver=True), listenMultiple=True)
+    reactor.listenMulticast(MCAST_PORT, Broker(args.name), listenMultiple=True)
+    reactor.run()

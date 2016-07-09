@@ -1,0 +1,4 @@
+#!/bin/bash
+
+./subscriber.py Broker1
+
