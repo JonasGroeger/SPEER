@@ -39,7 +39,7 @@ class Publisher(DatagramProtocol):
 
         if self.receiver and sender != self.name:
             # Home broker change
-            if typ == 'HomeBrokerChange':
+            if typ == 'HomeBrokerChange' and receiver == self.name:
                 self.other.home_broker = data
                 print("I, {}, changed home broker to: {}".format(self.name, self.other.home_broker))
 
