@@ -64,8 +64,6 @@ class Broker(DatagramProtocol):
                 hashes.append(h)
                 if broker not in brokers:
                     brokers.append(broker)
-                print("Brokers:")
-                print(brokers)
 
 
 if __name__ == '__main__':
