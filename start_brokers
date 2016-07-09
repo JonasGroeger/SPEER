@@ -1,5 +1,7 @@
 #!/bin/bash
 
 ./broker.py Broker1 &
+echo "Broker1 started"
 sleep 15
+echo "Broker2 started."
 ./broker.py Broker2
