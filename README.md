@@ -1,5 +1,7 @@
 # SPEER
 
+Demo for a Publish/Subscribe system over UDP which does Subscriber Offloading (Home Broker Change).
+
 # Depdendencies
 
 * Python 3
